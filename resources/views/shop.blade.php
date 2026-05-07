@@ -287,11 +287,19 @@
 </section>
 </main>
 
-<form id="frmfilter" action="{{ route('shop.index') }}" method="GET">
+{{-- <form id="frmfilter" action="{{ route('shop.index') }}" method="GET">
     <input type="hidden" name="brands" id="hdnbrands">
     <input type="hidden" name="categories" id="hdncategories">
     <input type="hidden" name="min" id="hdnmin" value="{{ $min_price }}">
     <input type="hidden" name="max" id="hdnmax" value="{{ $max_price }}">
+</form> --}}
+<form id="frmfilter" action="{{ route('shop.index') }}" method="GET">
+    <input type="hidden" name="brands" id="hdnbrands" value="{{ $f_brands }}">
+    <input type="hidden" name="categories" id="hdncategories" value="{{ $f_categories }}">
+    <input type="hidden" name="min" id="hdnmin" value="{{ $min_price }}">
+    <input type="hidden" name="max" id="hdnmax" value="{{ $max_price }}">
+    <!-- Add page reset if needed so filtering goes back to page 1 -->
+    <input type="hidden" name="page" value="1"> 
 </form>
 
 @endsection
@@ -299,42 +307,48 @@
 @push('scripts')
 <script>
     $(function() {
-        $('input[name="brands"]').on('change', function() {
-            var brands = '';
-            $('input[name="brands"]:checked').each(function() {
-                if (brands == '') {
-                    brands += $(this).val();
-                }
-                else {
-                    brands += ',' + $(this).val();
-                }
+        // Unified function to collect all filter data
+        function applyFilters() {
+            // 1. Get Checked Brands
+            var brands = [];
+            $('.chk-brand:checked').each(function() {
+                brands.push($(this).val());
             });
-            $('#hdnbrands').val(brands);
+            $('#hdnbrands').val(brands.join(','));
+
+            // 2. Get Checked Categories
+            var categories = [];
+            $('.chk-category:checked').each(function() {
+                categories.push($(this).val());
+            });
+            $('#hdncategories').val(categories.join(','));
+
+            // 3. Get Price Range from Slider
+            // Note: Use the slider's current value
+            var priceRange = $(".price-range-slider").val().split(',');
+            $('#hdnmin').val(priceRange[0]);
+            $('#hdnmax').val(priceRange[1]);
+
+            // 4. Submit the hidden form
             $('#frmfilter').submit();
+        }
+
+        // Event Listener for Brand Checkboxes
+        $('.chk-brand').on('change', function() {
+            applyFilters();
         });
 
-        $('input[name="categories"]').on('change', function() {
-            var categories = '';
-            $('input[name="categories"]:checked').each(function() {
-                if (categories == '') {
-                    categories += $(this).val();
-                }
-                else {
-                    categories += ',' + $(this).val();
-                }
-            });
-            $('#hdncategories').val(categories);
-            $('#frmfilter').submit();
+        // Event Listener for Category Checkboxes
+        $('.chk-category').on('change', function() {
+            applyFilters();
         });
 
-        $("input[name='price_range']").on('change', function() {
-            var min = $(this).val().split(',')[0];
-            var max = $(this).val().split(',')[1];
-            $('#hdnmin').val(min);
-            $('#hdnmax').val(max);
+        // Event Listener for Price Slider
+        // We use a slight delay so the user can finish dragging before the page reloads
+        $(".price-range-slider").on('change', function() {
             setTimeout(function() {
-            },1500);
-            $('#frmfilter').submit();
+                applyFilters();
+            }, 500); 
         });
     });
 </script>
