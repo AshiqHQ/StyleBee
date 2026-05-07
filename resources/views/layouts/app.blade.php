@@ -262,16 +262,94 @@
         fill="currentColor" />
     </symbol>
   </svg>
+  
   <style>
-    #header {
-      padding-top: 8px;
-      padding-bottom: 8px;
+    /* Container for the search results */
+    #box-content-search {
+        position: absolute;
+        top: 100%; /* Positions it directly below the search bar */
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #e4e4e4;
+        border-top: none;
+        z-index: 1000;
+        max-height: 400px;
+        overflow-y: auto;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        padding: 10px 0;
+        display: none; /* Hidden by default, shown via jQuery */
+        list-style: none;
     }
 
-    .logo__image {
-      max-width: 220px;
+    /* Individual product item */
+    .product-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 20px;
+        transition: background 0.3s ease;
+        text-decoration: none !important;
+    }
+
+    .product-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    /* Thumbnail styling */
+    .product-item .image {
+        width: 50px;
+        height: 50px;
+        flex-shrink: 0;
+        margin-right: 15px;
+        border-radius: 4px;
+        overflow: hidden;
+        background-color: #f1f1f1;
+    }
+
+    .product-item .image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Text and Name styling */
+    .product-item .name .body-text {
+        font-size: 14px;
+        font-weight: 500;
+        color: #222;
+        text-decoration: none;
+        display: block;
+        line-height: 1.2;
+    }
+
+    .product-item .name .body-text:hover {
+        color: #ffc107; /* Or your theme primary color */
+    }
+
+    /* Divider styling */
+    .divider {
+        height: 1px;
+        background-color: #eee;
+        margin: 0 20px;
+    }
+
+    /* Remove default UL padding */
+    #box-content-search ul {
+        padding: 0;
+        margin: 0;
+        list-style: none;
+    }
+
+    /* Custom scrollbar for a cleaner look */
+    #box-content-search::-webkit-scrollbar {
+        width: 6px;
+    }
+    #box-content-search::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 10px;
     }
   </style>
+
   <div class="header-mobile header_sticky">
     <div class="container d-flex align-items-center h-100">
       <a class="mobile-nav-activator d-block position-relative" href="#">
@@ -443,8 +521,7 @@
               <form action="#" method="GET" class="search-field container">
                 <p class="text-uppercase text-secondary fw-medium mb-4">What are you looking for?</p>
                 <div class="position-relative">
-                  <input class="search-field__input search-popup__input w-100 fw-medium" type="text"
-                    name="search-keyword" placeholder="Search products" />
+                  <input class="search-field__input search-popup__input w-100 fw-medium" type="text" name="search-keyword" id="search-input" placeholder="Search products" />
                   <button class="btn-icon search-popup__submit" type="submit">
                     <svg class="d-block" width="20" height="20" viewBox="0 0 20 20" fill="none"
                       xmlns="http://www.w3.org/2000/svg">
@@ -455,20 +532,9 @@
                 </div>
 
                 <div class="search-popup__results">
-                  <div class="sub-menu search-suggestion">
-                    <h6 class="sub-menu__title fs-base">Quicklinks</h6>
-                    <ul class="sub-menu__list list-unstyled">
-                      <li class="sub-menu__item"><a href="shop2.html" class="menu-link menu-link_us-s">New Arrivals</a>
-                      </li>
-                      <li class="sub-menu__item"><a href="#" class="menu-link menu-link_us-s">Dresses</a></li>
-                      <li class="sub-menu__item"><a href="shop3.html" class="menu-link menu-link_us-s">Accessories</a>
-                      </li>
-                      <li class="sub-menu__item"><a href="#" class="menu-link menu-link_us-s">Footwear</a></li>
-                      <li class="sub-menu__item"><a href="#" class="menu-link menu-link_us-s">Sweatshirt</a></li>
-                    </ul>
-                  </div>
+                  <ul id="box-content-search">
 
-                  <div class="search-result row row-cols-5"></div>
+                  </ul>
                 </div>
               </form>
             </div>
@@ -665,9 +731,61 @@
   <script src="{{ asset('assets/js/plugins/jquery.min.js') }}"></script>
   <script src="{{ asset('assets/js/plugins/bootstrap.bundle.min.js') }}"></script>
   <script src="{{ asset('assets/js/plugins/bootstrap-slider.min.js') }}"></script>
-    <script src="{{ asset('js/sweetalert.min.js') }}"></script>    
+  <script src="{{ asset('js/sweetalert.min.js') }}"></script>    
   <script src="{{ asset('assets/js/plugins/swiper.min.js') }}"></script>
   <script src="{{ asset('assets/js/plugins/countdown.js') }}"></script>
+  <script>
+    $(function() {
+      $("#search-input").on("keyup", function() {
+          let searchQuery = $(this).val();
+          
+          if (searchQuery.length > 0) {
+              $.ajax({
+                  type: "GET",
+                  url: "{{ route('home.search') }}",
+                  data: { query: searchQuery },
+                  success: function(data) {
+                      $("#box-content-search").html(""); // Clear previous results
+                      
+                      if (data.length > 0) {
+                          $.each(data, function(index, item) {
+                              // Generate the link dynamically
+                              let link = "{{ route('shop.product.details', ['product_slug' => ':slug']) }}";
+                              link = link.replace(':slug', item.slug);
+
+                              $("#box-content-search").append(`
+                                  <li>
+                                      <ul>
+                                          <li class="product-item gap14 mb-10">
+                                              <div class="image no-bg">
+                                                  <img src="{{ asset('uploads/products/thumbnails') }}/${item.image}" alt="${item.name}">
+                                              </div>
+                                              <div class="flex items-center justify-between gap20 flex-grow">
+                                                  <div class="name">
+                                                      <a href="${link}" class="body-text">${item.name}</a>
+                                                  </div>
+                                              </div>
+                                          </li>
+                                          <li class="mb-10">
+                                              <div class="divider"></div>
+                                          </li>
+                                      </ul>
+                                  </li>
+                              `);
+                          });
+                          $("#box-content-search").show();
+                      } else {
+                          $("#box-content-search").append('<li><div class="p-3">No products found.</div></li>');
+                          $("#box-content-search").show();
+                      }
+                  }
+              });
+          } else {
+              $("#box-content-search").hide();
+          }
+      });
+  });
+  </script>
   <script src="{{ asset('assets/js/theme.js') }}"></script>
     
   @stack("scripts")
