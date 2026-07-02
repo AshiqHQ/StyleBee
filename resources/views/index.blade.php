@@ -517,7 +517,7 @@
           <h2 class="fw-bold">Up to 60% Off</h2>
 
           <div class="position-relative d-flex align-items-center text-center pt-xxl-4 js-countdown mb-3"
-            data-date="1-7-2026" data-time="06:50">
+            data-date="1-8-2026" data-time="06:50">
             <div class="day countdown-unit">
               <span class="countdown-num d-block"></span>
               <span class="countdown-word text-uppercase text-secondary">Days</span>

@@ -26,6 +26,102 @@
     @stack("styles")
 </head>
 
+<style>
+    * { box-sizing: border-box; }
+
+    /* --- Floating round launcher button --- */
+    #chat-launcher {
+        position: fixed;
+        bottom: 40px;
+        right: 40px;
+        width: 58px;
+        height: 58px;
+        background: #4e46e5ad;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+        z-index: 9999;
+        transition: transform 0.15s ease;
+    }
+    #chat-launcher:hover { transform: scale(1.06); }
+
+    /* --- Chat window, hidden by default --- */
+    #chat-widget {
+        position: fixed;
+        bottom: 110px;
+        right: 40px;
+        width: 320px;
+        max-width: calc(100vw - 32px);
+        height: 400px;
+        max-height: calc(100vh - 140px);
+        background: #ffffffd0;
+        border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+        display: none; /* hidden until launcher is clicked */
+        flex-direction: column;
+        overflow: hidden;
+        z-index: 9999;
+        font-family: -apple-system, Arial, sans-serif;
+    }
+    #chat-widget.open { display: flex; }
+
+    #chat-header {
+        background: #4e46e5c4;
+        color: #ffffffde;
+        padding: 14px 16px;
+        font-weight: 600;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    #chat-close-btn {
+        cursor: pointer;
+        font-size: 22px;
+        line-height: 1;
+        opacity: 0.85;
+    }
+    #chat-close-btn:hover { opacity: 1; }
+
+    #chat-messages {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .msg { padding: 10px 14px; border-radius: 14px; max-width: 80%; line-height: 1.4; font-size: 14px; }
+    .msg.user { align-self: flex-end; background: #4f46e5; color: #fff; border-bottom-right-radius: 4px; }
+    .msg.model { align-self: flex-start; background: #f0f1f5; color: #222; border-bottom-left-radius: 4px; }
+    .msg.typing { align-self: flex-start; background: #f0f1f5; color: #999; font-style: italic; }
+
+    #chat-input-area { display: flex; border-top: 1px solid #eee; padding: 10px; gap: 8px; }
+    #chat-input {
+        flex: 1; border: 1px solid #ddd; border-radius: 20px;
+        padding: 10px 14px; font-size: 14px; outline: none;
+    }
+    #chat-send {
+        background: #4f46e5; color: #fff; border: none; border-radius: 20px;
+        padding: 0 18px; cursor: pointer; font-size: 14px;
+    }
+    #chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Small screens: full-width chat window */
+    @media (max-width: 480px) {
+        #chat-widget {
+            right: 16px;
+            left: 16px;
+            width: auto;
+            bottom: 88px;
+        }
+        #chat-launcher { right: 16px; bottom: 16px; }
+    }
+</style>
+
 <script>
     (function (window, document) {
         var loader = function () {
@@ -39,6 +135,114 @@
 </script>
 
 <body class="gradient-bg">
+
+  <div id="chat-launcher" title="Chat with support">
+        <!-- Chat bubble icon (shown when closed) -->
+        <svg id="chat-icon-open" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="28" height="28" fill="white">
+            <path d="M12 2C6.48 2 2 6.03 2 11c0 2.4 1.06 4.57 2.8 6.19L4 22l4.9-1.98C10.03 20.36 11 20.5 12 20.5c5.52 0 10-4.03 10-9S17.52 2 12 2z"/>
+        </svg>
+        <!-- Close (X) icon (shown when open) -->
+        <svg id="chat-icon-close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26" fill="white" style="display:none;">
+            <path d="M18.3 5.71L12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.89 18.3 9.18 12 2.89 5.71 4.3 4.29l6.29 6.3 6.29-6.3z"/>
+        </svg>
+    </div>
+
+    <div id="chat-widget">
+        <div id="chat-header">
+            💬 Customer Support
+            <span id="chat-close-btn">&times;</span>
+        </div>
+        <div id="chat-messages">
+            <div class="msg model">Hi! How can I help you today?</div>
+        </div>
+        <div id="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Type your question..." />
+            <button id="chat-send">Send</button>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const launcher = document.getElementById('chat-launcher');
+        const widget = document.getElementById('chat-widget');
+        const iconOpen = document.getElementById('chat-icon-open');
+        const iconClose = document.getElementById('chat-icon-close');
+        const closeBtn = document.getElementById('chat-close-btn');
+
+        const messagesEl = document.getElementById('chat-messages');
+        const inputEl = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('chat-send');
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+        let sessionId = localStorage.getItem('chat_session_id') || null;
+        let isOpen = false;
+
+        function toggleChat() {
+            isOpen = !isOpen;
+            widget.classList.toggle('open', isOpen);
+            iconOpen.style.display = isOpen ? 'none' : 'block';
+            iconClose.style.display = isOpen ? 'block' : 'none';
+            if (isOpen) inputEl.focus();
+        }
+
+        launcher.addEventListener('click', toggleChat);
+        closeBtn.addEventListener('click', toggleChat);
+
+        function addMessage(text, role) {
+            const div = document.createElement('div');
+            div.className = 'msg ' + role;
+            div.textContent = text;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            return div;
+        }
+
+        async function sendMessage() {
+            const text = inputEl.value.trim();
+            if (!text) return;
+
+            addMessage(text, 'user');
+            inputEl.value = '';
+            sendBtn.disabled = true;
+
+            const typingEl = addMessage('Typing...', 'typing');
+
+            try {
+                const res = await fetch("{{ route('chatbot.send') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({ message: text, session_id: sessionId }),
+                });
+
+                const data = await res.json();
+                typingEl.remove();
+
+                if (data.session_id) {
+                    sessionId = data.session_id;
+                    localStorage.setItem('chat_session_id', sessionId);
+                }
+
+                addMessage(data.reply || 'Sorry, something went wrong.', 'model');
+            } catch (err) {
+                typingEl.remove();
+                addMessage('Network error. Please try again.', 'model');
+            } finally {
+                sendBtn.disabled = false;
+                inputEl.focus();
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        inputEl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    })();
+    </script>
+
+
   <svg class="d-none">
     <symbol id="icon_nav" viewBox="0 0 25 18">
       <rect width="25" height="2" />
@@ -264,21 +468,44 @@
   </svg>
   
   <style>
+    .product-single {
+        margin-top: 20px !important;
+    }
+
     /* Container for the search results */
+    .search-popup {
+      background: linear-gradient(360deg, #fce4f7 0%, #f8d0f28a 100%);
+      border: 1.5px solid rgba(224, 64, 176, 0.2);
+    }
+
+     .search-field__input {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border: 2px solid rgba(224, 64, 176, 0.2) !important;
+        border-radius: 50px !important;
+        padding: 16px 55px 16px 25px !important;
+        font-size: 16px !important;
+        color: #1a1a1a !important;
+        transition: all 0.3s ease !important;
+        width: 100% !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+        height: 56px !important;
+    }
+    
     #box-content-search {
         position: absolute;
-        top: 100%; /* Positions it directly below the search bar */
+        top: calc(100% + 8px);
         left: 0;
         right: 0;
-        background: #fff;
-        border: 1px solid #e4e4e4;
-        border-top: none;
+        background: linear-gradient(135deg, #fce4f7 0%, #f8d0f28a 100%);
+        border: 1.5px solid rgba(224, 64, 176, 0.2);
+        border-radius: 12px;
         z-index: 1000;
         max-height: 400px;
         overflow-y: auto;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-        padding: 10px 0;
-        display: none; /* Hidden by default, shown via jQuery */
+        box-shadow: 0 8px 32px rgba(224, 64, 176, 0.15), 0 2px 8px rgba(0,0,0,0.08);
+        padding: 8px 0;
+        display: none;
         list-style: none;
     }
 
@@ -286,24 +513,26 @@
     .product-item {
         display: flex;
         align-items: center;
-        padding: 10px 20px;
-        transition: background 0.3s ease;
+        padding: 10px 16px;
+        gap: 14px;
+        transition: background 0.2s ease;
         text-decoration: none !important;
+        cursor: pointer;
     }
 
     .product-item:hover {
-        background-color: #f8f9fa;
+        background-color: #fdf0f9;
     }
 
     /* Thumbnail styling */
     .product-item .image {
-        width: 50px;
-        height: 50px;
+        width: 48px;
+        height: 48px;
         flex-shrink: 0;
-        margin-right: 15px;
-        border-radius: 4px;
+        border-radius: 8px;
         overflow: hidden;
-        background-color: #f1f1f1;
+        background: linear-gradient(135deg, #fce4f7 0%, #f8d0f2 100%);
+        border: 1px solid rgba(224, 64, 176, 0.12);
     }
 
     .product-item .image img {
@@ -316,21 +545,14 @@
     .product-item .name .body-text {
         font-size: 14px;
         font-weight: 500;
-        color: #222;
+        color: #1a1a1a;
         text-decoration: none;
         display: block;
-        line-height: 1.2;
+        line-height: 1.3;
     }
 
     .product-item .name .body-text:hover {
-        color: #ffc107; /* Or your theme primary color */
-    }
-
-    /* Divider styling */
-    .divider {
-        height: 1px;
-        background-color: #eee;
-        margin: 0 20px;
+        color: #c42b9a;
     }
 
     /* Remove default UL padding */
@@ -340,13 +562,19 @@
         list-style: none;
     }
 
-    /* Custom scrollbar for a cleaner look */
+    /* Scrollbar */
     #box-content-search::-webkit-scrollbar {
-        width: 6px;
+        width: 4px;
+    }
+    #box-content-search::-webkit-scrollbar-track {
+        background: transparent;
     }
     #box-content-search::-webkit-scrollbar-thumb {
-        background: #ccc;
+        background: rgba(224, 64, 176, 0.3);
         border-radius: 10px;
+    }
+    #box-content-search::-webkit-scrollbar-thumb:hover {
+        background: rgba(224, 64, 176, 0.5);
     }
   </style>
 
@@ -521,12 +749,8 @@
               <form action="#" method="GET" class="search-field container">
                 <p class="text-uppercase text-secondary fw-medium mb-4">What are you looking for?</p>
                 <div class="position-relative">
-                  <input class="search-field__input search-popup__input w-100 fw-medium" type="text" name="search-keyword" id="search-input" placeholder="Search products" />
+                  <input class="search-field__input search-popup__input w-100 fw-medium" type="text" name="search-keyword" id="search-input" placeholder="Search products..." />
                   <button class="btn-icon search-popup__submit" type="submit">
-                    <svg class="d-block" width="20" height="20" viewBox="0 0 20 20" fill="none"
-                      xmlns="http://www.w3.org/2000/svg">
-                      <use href="#icon_search" />
-                    </svg>
                   </button>
                   <button class="btn-icon btn-close-lg search-popup__reset" type="reset"></button>
                 </div>
@@ -539,7 +763,6 @@
               </form>
             </div>
           </div>
-
 
           @guest
           <div class="header-tools__item hover-container">
