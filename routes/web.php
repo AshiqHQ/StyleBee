@@ -106,6 +106,4 @@ Route::post('/ipn', [SslCommerzPaymentController::class, 'ipn']);
 
 //CHATBOT
 Route::get('/chatbot', [ChatbotController::class, 'index'])->name('chatbot.index');
-Route::post('/chatbot/send', [ChatbotController::class, 'sendMessage'])
- ->middleware('throttle:20,1')
- ->name('chatbot.send');
+Route::post('/chatbot/send', [ChatbotController::class, 'sendMessage'])->middleware('throttle:20,1')->name('chatbot.send');

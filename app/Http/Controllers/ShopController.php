@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Review;
 use Illuminate\Http\Request;
 
 class ShopController extends Controller
@@ -50,5 +51,20 @@ class ShopController extends Controller
         $product = Product::where('slug', $product_slug)->firstOrFail();
         $rproducts = Product::where('slug', '<>', $product_slug)->take(8)->get();
         return view('details', compact('product', 'rproducts'));
+    }
+
+    public function storeReview(Request $request)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'name'       => 'required|string|max:255',
+            'email'      => 'required|email|max:255',
+            'rating'     => 'required|integer|min:1|max:5',
+            'comment'    => 'required|string|max:1000',
+        ]);
+
+        Review::create($validated);
+
+        return back()->with('success', 'Review submitted successfully!');
     }
 }
