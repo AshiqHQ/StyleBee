@@ -940,7 +940,6 @@
               xmlns="http://www.w3.org/2000/svg">
               <use href="#icon_heart" />
             </svg>
-            <span class="wishlist-amount d-block position-absolute js-wishlist-count">3</span>
           </div>
           <span>Wishlist</span>
         </a>
